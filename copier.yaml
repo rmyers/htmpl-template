@@ -29,12 +29,6 @@ forms:
   help: Form components
 
 _exclude:
-  {% if not auth %}
-  - src/components/auth
-  {% endif %}
-  {% if not datatable %}
-  - src/components/datatable
-  {% endif %}
-  {% if not forms %}
-  - src/components/forms
-  {% endif %}
+  - "{% if not auth %}src/components/auth{% endif %}"
+  - "{% if not datatable %}src/components/datatable{% endif %}"
+  - "{% if not forms %}src/components/forms{% endif %}"

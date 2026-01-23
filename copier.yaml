@@ -10,3 +10,31 @@ module_name:
 theme:
   type: str
   help: What theme to use?
+
+# Components
+
+auth:
+  type: bool
+  default: false
+  help: Authentication components
+
+datatable:
+  type: bool
+  default: false
+  help: Data tables
+
+forms:
+  type: bool
+  default: false
+  help: Form components
+
+_exclude:
+  {% if not auth %}
+  - src/components/auth
+  {% endif %}
+  {% if not datatable %}
+  - src/components/datatable
+  {% endif %}
+  {% if not forms %}
+  - src/components/forms
+  {% endif %}

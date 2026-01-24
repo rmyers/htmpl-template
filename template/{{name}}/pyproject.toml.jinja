@@ -6,5 +6,86 @@ readme = "README.md"
 requires-python = ">=3.14"
 
 dependencies = [
-    "htmpl[all]"
+    "htmpl[all]",
+    "cuneus",
 ]
+
+[dependency-groups]
+dev = [
+    "mypy",
+    "ruff",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-httpx",
+    "pytest-mock",
+]
+
+[tool.cuneus]
+app_module = "{{module}}.app:app"
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+
+[tool.coverage.run]
+# addresses this asyncio issue: https://github.com/nedbat/coveragepy/issues/1082
+concurrency = ["thread", "greenlet"]
+omit = [".venv"]
+source = ["{{module}}"]
+
+[tool.mypy]
+check_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+python_version = "3.14"
+files = "{{module}}/**/*.py"
+strict_equality = true
+warn_no_return = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unreachable = true
+warn_unused_configs = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+addopts = [
+    # "--test-alembic",
+    "--log-cli-level=warning",
+    "--cov={{module}}",
+    "--cov-branch",
+    "--cov-report=term-missing:skip-covered",
+    "--cov-report=html",
+    "--strict-markers",
+    "--strict-config",
+    "--verbose",
+]
+asyncio_mode = "auto"
+filterwarnings = [
+    # Enable 'error' to treat all warnings as errors
+    # "error",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+norecursedirs = ".venv/"
+
+[tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = ["env", ".venv"]
+indent-width = 4
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

@@ -1,0 +1,3 @@
+# This file will be copied to `.env` and used to store secrets for the application
+
+SECRET_KEY=

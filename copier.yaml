@@ -1,9 +1,11 @@
+_subdirectory: template
+
 # questions
-project_name:
+name:
   type: str
   help: What is your project name?
 
-module_name:
+module:
   type: str
   help: What is your Python module name?
 
@@ -17,16 +19,19 @@ auth:
   type: bool
   default: false
   help: Authentication components
+  when: false
 
 datatable:
   type: bool
   default: false
   help: Data tables
+  when: false
 
 forms:
   type: bool
   default: false
   help: Form components
+  when: false
 
 _exclude:
   - "{% if not auth %}src/components/auth{% endif %}"

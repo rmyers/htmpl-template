@@ -1,0 +1,63 @@
+[project]
+name = "htmpl-template"
+version = "0.0.1"
+description = "Starter template for projects using 'htmpl'"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.14"
+authors = [{ name = "Robert Myers", email = "robert@julython.org" }]
+keywords = ["html", "templating", "t-strings", "fastapi", "htmx", "pico"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Framework :: FastAPI",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+  "Topic :: Text Processing :: Markup :: HTML",
+  "Typing :: Typed",
+]
+
+dependencies = ["tdom", "htmpl", "rdflib"]
+
+[project.urls]
+Homepage = "https://github.com/rmyers/htmpl-template"
+Documentation = "https://github.com/rmyers/htmpl-template#readme"
+Repository = "https://github.com/rmyers/htmpl-template"
+
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = [
+  # "--test-alembic",
+  "--log-cli-level=warning",
+  # "--junitxml=junit/test-results.xml",
+  "--cov=htmpl",
+  "--cov-branch",
+  "--cov-report=term-missing:skip-covered",
+  "--cov-report=html",
+  "--strict-markers",
+  "--strict-config",
+  "--verbose",
+]
+
+[tool.conda-lock]
+channels = ["conda-forge", "defaults"]
+platforms = ["linux-64", "osx-arm64"]
+
+[tool.conda-lock.dependencies]
+tdom = { source = "pypi" }
+htmpl = { source = "pypi" }
+python = "3.14"
+conda-lock = "*"
+pip = "*"

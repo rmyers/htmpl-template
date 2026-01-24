@@ -19,4 +19,12 @@ def create_app() -> FastAPI:
 
     add_assets_routes(app)
 
+    if settings.debug:
+        from ._admin.manager import app as admin_app
+
+        app.include_router(admin_app)
+
     return app
+
+
+app = create_app()

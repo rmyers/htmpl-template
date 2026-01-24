@@ -1,3 +1,10 @@
+# Setup the env
+export PYTHONPATH = ./
+
+# PHONY just means this target does not make any files
+.PHONY: setup clean test help
+
+default: help
 
 deps: ## Run any dependencies for local dev and test
 	@echo "Starting deps"

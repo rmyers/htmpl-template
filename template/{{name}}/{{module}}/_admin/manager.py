@@ -13,20 +13,17 @@ from __future__ import annotations
 import asyncio
 import logging
 import secrets
-from string.templatelib import Template
 import subprocess
-import shutil
+from string.templatelib import Template
 from pathlib import Path
 from typing import Annotated, Any, Callable
 from dataclasses import dataclass, field
 
-import click
-import tomlkit
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import APIRouter, FastAPI, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from pydantic import Field
-
-from htmpl.core import html, render_html, SafeHTML
+from tdom import html
+from htmpl.core import render_html, SafeHTML
 from htmpl.assets import component, registry, Bundles
 from htmpl.fastapi import ParsedForm, use_component, use_bundles, add_assets_routes, is_htmx, use_form
 from htmpl.forms import BaseForm
@@ -407,7 +404,7 @@ class LoginForm(BaseForm):
     code: str = Field(description="Verify the code displayed on your terminal")
 
 
-def login_form(form: LoginForm, values: dict | None = None) -> Template:
+def login_form(form: ParsedForm[LoginForm], values: dict | None = None) -> Template:
     return t'''<!DOCTYPE html>
 <html data-theme="dark">
 <head><title>Login</title>
@@ -434,158 +431,144 @@ def handle_app_exception(request: Request, exc: HTTPException) -> RedirectRespon
 # Application Factory
 # ============================================================================
 
-def create_app(config: ManagerConfig) -> FastAPI:
-    from contextlib import asynccontextmanager
 
-    repo = TemplateRepo(config.template_checkout)
-    copier = CopierRunner(config)
+app = APIRouter(prefix="/_admin")
+app.add_exception_handler(401, handle_app_exception) # type: ignore
 
-    @asynccontextmanager
-    async def lifespan(app: FastAPI):
-        await registry.initialize(watch=True)
-        yield
-        await registry.teardown()
+# ---- Public routes ----
 
-    app = FastAPI(title="htmpl Manager", lifespan=lifespan)
-    app.add_exception_handler(401, handle_app_exception) # type: ignore
-
-    # ---- Public routes ----
-
-    @app.get("/login")
-    @app.post("/login")
-    async def _login(form: Annotated[ParsedForm[LoginForm], use_form(LoginForm, submit_text="Unlock")]):
-        if form.errors:
-            return await render_html(login_form(form))
-
-        if form.data is not None:
-            if token := session_mgr.create_session(form.data.code):
-                response = RedirectResponse("/", status_code=303)
-                response.set_cookie(SESSION_COOKIE, token, httponly=True, samesite="strict")
-                return response
-
+@app.get("/login")
+@app.post("/login")
+async def _login(form: Annotated[ParsedForm[LoginForm], use_form(LoginForm, submit_text="Unlock")]):
+    if form.errors:
         return await render_html(login_form(form))
 
-    # ---- Protected routes ----
+    if form.data is not None:
+        if token := session_mgr.create_session(form.data.code):
+            response = RedirectResponse("/", status_code=303)
+            response.set_cookie(SESSION_COOKIE, token, httponly=True, samesite="strict")
+            return response
 
-    @app.get("/")
-    async def dashboard(
-        _: Annotated[None, Depends(require_auth)],
-        layout: Annotated[Callable, use_component(ManagerLayout)],
-    ):
-        await repo.ensure_checkout()
-        version = await repo.current_version() or "unknown"
-        available = await repo.available_versions()
-        latest = available[0] if available else "unknown"
-        plugins = repo.list_plugins()
-        installed_count = len(config.installed_plugins)
+    return await render_html(login_form(form))
 
-        stats = t'''<div class="grid">
-            {StatCard("Template Version", version, f"Latest: {latest}")}
-            {StatCard("Installed Plugins", f"{installed_count} / {len(plugins)}")}
-            {StatCard("Project", str(config.project_root.name))}
-        </div>'''
+# ---- Protected routes ----
 
-        actions = t'''<section>
-            <h2>Quick Actions</h2>
-            <div class="grid">
-                <a href="/plugins" role="button">Browse Plugins</a>
-                <a href="/routes" role="button" class="outline">Create Route</a>
-                <button hx-post="/api/templates/update" hx-target="#update-result" class="secondary">
-                    Check Updates
-                </button>
-            </div>
-            <div id="update-result"></div>
-        </section>'''
+@app.get("/")
+async def dashboard(
+    _: Annotated[None, Depends(require_auth)],
+    layout: Annotated[Callable, use_component(ManagerLayout)],
+):
+    await repo.ensure_checkout()
+    version = await repo.current_version() or "unknown"
+    available = await repo.available_versions()
+    latest = available[0] if available else "unknown"
+    plugins = repo.list_plugins()
+    installed_count = len(config.installed_plugins)
 
-        return await render_html(t'''
-            <{layout} title="Dashboard">
-                <h1>Project Dashboard</h1>
-                {stats}
-                {actions}
-            </{layout}>
-        ''')
+    stats = t'''<div class="grid">
+        {StatCard("Template Version", version, f"Latest: {latest}")}
+        {StatCard("Installed Plugins", f"{installed_count} / {len(plugins)}")}
+        {StatCard("Project", str(config.project_root.name))}
+    </div>'''
 
-    @app.get("/plugins")
-    async def plugins_page(
-        _: Annotated[None, Depends(require_auth)],
-        layout: Annotated[Callable, use_component(ManagerLayout)],
-    ):
-        plugins = repo.list_plugins()
-        cards = [
-            PluginCard(p, installed=(p.name in config.installed_plugins))
-            for p in plugins
-        ]
+    actions = t'''<section>
+        <h2>Quick Actions</h2>
+        <div class="grid">
+            <a href="/plugins" role="button">Browse Plugins</a>
+            <a href="/routes" role="button" class="outline">Create Route</a>
+            <button hx-post="/api/templates/update" hx-target="#update-result" class="secondary">
+                Check Updates
+            </button>
+        </div>
+        <div id="update-result"></div>
+    </section>'''
 
-        return await render_html(t'''
-            <{layout} title="Plugins">
-                <h1>Available Plugins</h1>
-                <div class="grid">{cards}</div>
-            </{layout}>
-        ''')
+    return await render_html(t'''
+        <{layout} title="Dashboard">
+            <h1>Project Dashboard</h1>
+            {stats}
+            {actions}
+        </{layout}>
+    ''')
 
-    @app.post("/api/plugins/{name}/install")
-    async def install_plugin(name: str, _: Annotated[None, Depends(require_auth)]):
-        plugins = repo.list_plugins()
-        plugin = next((p for p in plugins if p.name == name), None)
-        if not plugin:
-            raise HTTPException(404, "Plugin not found")
+@app.get("/plugins")
+async def plugins_page(
+    _: Annotated[None, Depends(require_auth)],
+    layout: Annotated[Callable, use_component(ManagerLayout)],
+):
+    plugins = repo.list_plugins()
+    cards = [
+        PluginCard(p, installed=(p.name in config.installed_plugins))
+        for p in plugins
+    ]
 
-        result = copier.install_plugin(plugin)
-        if result.returncode == 0:
-            config.installed_plugins.append(name)
-            config.save()
-            return await render_html(PluginCard(plugin, installed=True))
+    return await render_html(t'''
+        <{layout} title="Plugins">
+            <h1>Available Plugins</h1>
+            <div class="grid">{cards}</div>
+        </{layout}>
+    ''')
 
-        return await render_html(Alert(f"Install failed: {result.stderr}", "error"))
+@app.post("/api/plugins/{name}/install")
+async def install_plugin(name: str, _: Annotated[None, Depends(require_auth)]):
+    plugins = repo.list_plugins()
+    plugin = next((p for p in plugins if p.name == name), None)
+    if not plugin:
+        raise HTTPException(404, "Plugin not found")
 
-    @app.get("/routes")
-    async def routes_page(
-        _: Annotated[None, Depends(require_auth)],
-        layout: Annotated[Callable, use_component(ManagerLayout)],
-    ):
-        return await render_html(t'''
-            <{layout} title="Create Route">
-                <h1>Create New Route</h1>
-                {RouteForm(user_id="2345")}
-            </{layout}>
-        ''')
+    result = copier.install_plugin(plugin)
+    if result.returncode == 0:
+        config.installed_plugins.append(name)
+        config.save()
+        return await render_html(PluginCard(plugin, installed=True))
 
-    @app.post("/api/routes/create")
-    async def create_route(request: Request, _: Annotated[None, Depends(require_auth)]):
-        form = await request.form()
-        result = copier.create_route(
-            route_name=str(form["name"]),
-            route_path=str(form["path"]),
-            template_type=str(form.get("template_type", "page")),
-        )
+    return await render_html(Alert(f"Install failed: {result.stderr}", "error"))
 
-        if result.returncode == 0:
-            return await render_html(Alert(f"Route created: {form['path']}"))
-        return await render_html(Alert(f"Failed: {result.stderr}", "error"))
+@app.get("/routes")
+async def routes_page(
+    _: Annotated[None, Depends(require_auth)],
+    layout: Annotated[Callable, use_component(ManagerLayout)],
+):
+    return await render_html(t'''
+        <{layout} title="Create Route">
+            <h1>Create New Route</h1>
+            {RouteForm(user_id="2345")}
+        </{layout}>
+    ''')
 
-    @app.post("/api/templates/update")
-    async def update_templates(_: Annotated[None, Depends(require_auth)]):
-        await repo.ensure_checkout()
-        current = await repo.current_version()
-        available = await repo.available_versions()
+@app.post("/api/routes/create")
+async def create_route(request: Request, _: Annotated[None, Depends(require_auth)]):
+    form = await request.form()
+    result = copier.create_route(
+        route_name=str(form["name"]),
+        route_path=str(form["path"]),
+        template_type=str(form.get("template_type", "page")),
+    )
 
-        if available and available[0] != current:
-            await repo.checkout_version(available[0])
-            return await render_html(Alert(f"Updated to {available[0]} from {current}"))
-        return await render_html(Alert(f"Already up to date ({current})"))
+    if result.returncode == 0:
+        return await render_html(Alert(f"Route created: {form['path']}"))
+    return await render_html(Alert(f"Failed: {result.stderr}", "error"))
 
-    @app.get("/docs")
-    async def docs_page(
-        _: Annotated[None, Depends(require_auth)],
-        layout: Annotated[Callable, use_component(ManagerLayout)],
-    ):
-        # TODO: Load component showcase from template repo
-        return await render_html(t'''
-            <{layout} title="Documentation">
-                <h1>Component Documentation</h1>
-                <p>Interactive documentation coming soon...</p>
-            </{layout}>
-        ''')
+@app.post("/api/templates/update")
+async def update_templates(_: Annotated[None, Depends(require_auth)]):
+    await repo.ensure_checkout()
+    current = await repo.current_version()
+    available = await repo.available_versions()
 
-    add_assets_routes(app)
-    return app
+    if available and available[0] != current:
+        await repo.checkout_version(available[0])
+        return await render_html(Alert(f"Updated to {available[0]} from {current}"))
+    return await render_html(Alert(f"Already up to date ({current})"))
+
+@app.get("/docs")
+async def docs_page(
+    _: Annotated[None, Depends(require_auth)],
+    layout: Annotated[Callable, use_component(ManagerLayout)],
+):
+    # TODO: Load component showcase from template repo
+    return await render_html(t'''
+        <{layout} title="Documentation">
+            <h1>Component Documentation</h1>
+            <p>Interactive documentation coming soon...</p>
+        </{layout}>
+    ''')

@@ -1,10 +1,7 @@
 [project]
 name = "auth"
+uri = "components/auth"
 description = "Authentication components for login/registration"
 readme = "README.md"
 
-dependencies = [
-    "htmpl:components/core>=0.0.1",
-    "htmpl:services/oauth",
-    "python:ptjwt>=2.8.0",
-]
+dependencies = ["htmpl:services/oauth", "python:ptjwt>=2.8.0"]

@@ -5,7 +5,7 @@ conda_env_dir ?= $(base_dir)/env
 conda_bin ?= $(conda_env_dir)/bin
 
 # Export environment variables
-export PYTHONPATH = $(base_dir)/src
+export PYTHONPATH = $(base_dir)
 # Tell pip not to install any deps conda lock does that
 export PIP_NO_DEPS = 1
 # Tell pip not to create a venv to build... just use the existing env tools
@@ -78,5 +78,7 @@ clean:  ## Clean up cache and temporary files and stop containers
 	rm -rf .pytest_cache .mypy_cache .coverage coverage.xml htmlcov junit dist
 
 build:  ## Run build
-	$(conda_run) python service/graph.py
+	$(conda_run) python build_release.py
 
+dev:  ## Run the rendered app
+	$(conda_run) uvicorn "rendered.app:app" --reload

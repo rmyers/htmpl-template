@@ -1,0 +1,1 @@
+../template/{{name}}/{{module}}/app.py

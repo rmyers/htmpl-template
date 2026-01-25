@@ -1,0 +1,1 @@
+../../template/{{name}}/{{module}}/components/{% if auth %}auth{% endif %}

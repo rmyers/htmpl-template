@@ -1,17 +1,20 @@
 """HTMPL Admin dashboard routes."""
 
 from fastapi import APIRouter, Request
-from httpx import get
 from svcs.fastapi import DepContainer
-from structlog.stdlib import get_logger
 
+import mistune
 from tdom import html
-from htmpl.core import render_html
+from htmpl.core import SafeHTML, render_html
+
 from ...types import TComponentGraph
 
-logger = get_logger('htmpl_admin')
-
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+def render_markdown(content: str) -> SafeHTML:
+    """Render markdown to HTML, marked safe for template insertion."""
+    return SafeHTML(str(mistune.html(content)))
 
 
 # Layout
@@ -24,6 +27,8 @@ def AdminPage(children, *, title: str = "HTMPL Admin"):
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{title}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 </head>
 <body>
     <nav class="container">
@@ -37,6 +42,7 @@ def AdminPage(children, *, title: str = "HTMPL Admin"):
     </nav>
     <main class="container">{children}</main>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script>hljs.highlightAll();</script>
 </body>
 </html>''')
 
@@ -68,18 +74,21 @@ def ComponentCard(component: dict, deps: set[str], python_deps: set[str]):
         py_items = [t'<li><code>{p}</code></li>' for p in sorted(python_deps)]
         python_list = t'<details><summary>Python packages ({len(python_deps)})</summary><ul>{py_items}</ul></details>'
 
-    return t'''<article>
+    return t'''
+    <article>
         <header>
             <hgroup>
                 <h3><a href="/admin/component/{uri}">{name}</a></h3>
-                <p>{help_text}</p>
+                {StatusBadge(installed)}
             </hgroup>
-            {StatusBadge(installed)}
         </header>
+        {render_markdown(component["readme"])}
         <p><code>{uri}</code></p>
+        <footer>
         {config_info}
         {dep_list}
         {python_list}
+        </footer>
     </article>'''
 
 
@@ -156,7 +165,6 @@ def ResolveResult(needed: set[str], config_keys: dict[str, str], python_deps: se
 async def admin_index(services: DepContainer):
     graph: TComponentGraph = await services.aget(TComponentGraph)
     components = graph.all_components()
-    logger.info(f"{components}")
 
     # Split into components and services
     comp_list = [c for c in components if c["uri"].startswith("components/")]
@@ -164,7 +172,7 @@ async def admin_index(services: DepContainer):
 
     installed_count = sum(1 for c in components if c["installed"])
 
-    return await render_html(t'''
+    return await render_html(html(t'''
         <{AdminPage} title="HTMPL Admin - Dashboard">
         <hgroup>
             <h1>Component Dashboard</h1>
@@ -181,7 +189,7 @@ async def admin_index(services: DepContainer):
             {ComponentTable(svc_list)}
         </section>
         </{AdminPage}>
-    ''')
+    '''))
 
 
 @router.get("/component/{uri:path}")
@@ -190,18 +198,18 @@ async def component_detail(uri: str, services: DepContainer):
     component = graph.get_component(uri)
 
     if not component:
-        return await render_html(t'''
+        return await render_html(html(t'''
             <{AdminPage} title="Not Found">
             <h1>Component not found</h1>
             <p>No component with URI: <code>{uri}</code></p>
             <a href="/admin">Back to dashboard</a>
             </{AdminPage}>
-        ''')
+        '''))
 
     deps = graph.get_deps(uri)
     python_deps = graph.get_python_deps(uri)
 
-    return await render_html(t'''
+    return await render_html(html(t'''
         <{AdminPage} title="HTMPL Admin - {component["name"]}">
         <nav aria-label="breadcrumb">
             <ul>
@@ -214,7 +222,7 @@ async def component_detail(uri: str, services: DepContainer):
 
         <a href="/admin" role="button" class="secondary">Back to Dashboard</a>
         </{AdminPage}>
-    ''')
+    '''))
 
 
 @router.get("/resolve")
@@ -222,7 +230,7 @@ async def resolve_page(services: DepContainer):
     graph: TComponentGraph = await services.aget(TComponentGraph)
     components = graph.all_components()
 
-    return await render_html(t'''
+    return await render_html(html(t'''
         <{AdminPage} title="HTMPL Admin - Resolve">
         <hgroup>
             <h1>Resolve Dependencies</h1>
@@ -231,7 +239,7 @@ async def resolve_page(services: DepContainer):
 
         {ResolveForm(components)}
         </{AdminPage}>
-    ''')
+    '''))
 
 
 @router.post("/resolve")
@@ -239,12 +247,14 @@ async def resolve_dependencies(request: Request, services: DepContainer):
     graph: TComponentGraph = await services.aget(TComponentGraph)
 
     form = await request.form()
-    selected: list[str] = form.getlist("selected") # type: ignore
+    selected = form.getlist("selected")
 
     if not selected:
         return await render_html(t'<article class="secondary"><p>No components selected.</p></article>')
 
-    needed = graph.resolve(list(selected))
+    needed = graph.resolve(
+        list(selected), # type: ignore
+    )
     config_keys = graph.get_config_keys(list(needed))
 
     # Collect all python deps

@@ -268,10 +268,11 @@ class ComponentGraph:
         """Get metadata for a single component by URI."""
         results = self.graph.query(
             f"""
-            SELECT ?name ?help ?configKey WHERE {{
+            SELECT ?name ?help ?configKey ?readme WHERE {{
                 <htmpl://{uri}> htmpl:name ?name .
                 OPTIONAL {{ <htmpl://{uri}> htmpl:help ?help }}
                 OPTIONAL {{ <htmpl://{uri}> htmpl:configKey ?configKey }}
+                OPTIONAL {{ <htmpl://{uri}> htmpl:readme ?readme }}
             }}
         """
         )
@@ -280,12 +281,15 @@ class ComponentGraph:
             return None
         row = rows[0]
         installed = self.get_installed()
+        encoded = str(row.readme) if row.readme else None
+        readme = base64.b64decode(encoded).decode("utf-8") if encoded else ""
         return {
             "uri": uri,
             "name": str(row.name),
             "help": str(row.help) if row.help else "",
             "config_key": str(row.configKey) if row.configKey else None,
             "installed": uri in installed,
+            "readme": readme,
         }
 
     def get_readme(self, uri: str) -> str | None:

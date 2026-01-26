@@ -172,7 +172,7 @@ async def admin_index(services: DepContainer):
 
     installed_count = sum(1 for c in components if c["installed"])
 
-    return await render_html(html(t'''
+    return await render_html(t'''
         <{AdminPage} title="HTMPL Admin - Dashboard">
         <hgroup>
             <h1>Component Dashboard</h1>
@@ -189,7 +189,7 @@ async def admin_index(services: DepContainer):
             {ComponentTable(svc_list)}
         </section>
         </{AdminPage}>
-    '''))
+    ''')
 
 
 @router.get("/component/{uri:path}")
@@ -198,18 +198,18 @@ async def component_detail(uri: str, services: DepContainer):
     component = graph.get_component(uri)
 
     if not component:
-        return await render_html(html(t'''
+        return await render_html(t'''
             <{AdminPage} title="Not Found">
             <h1>Component not found</h1>
             <p>No component with URI: <code>{uri}</code></p>
             <a href="/admin">Back to dashboard</a>
             </{AdminPage}>
-        '''))
+        ''')
 
     deps = graph.get_deps(uri)
     python_deps = graph.get_python_deps(uri)
 
-    return await render_html(html(t'''
+    return await render_html(t'''
         <{AdminPage} title="HTMPL Admin - {component["name"]}">
         <nav aria-label="breadcrumb">
             <ul>
@@ -222,7 +222,7 @@ async def component_detail(uri: str, services: DepContainer):
 
         <a href="/admin" role="button" class="secondary">Back to Dashboard</a>
         </{AdminPage}>
-    '''))
+    ''')
 
 
 @router.get("/resolve")
@@ -230,7 +230,7 @@ async def resolve_page(services: DepContainer):
     graph: TComponentGraph = await services.aget(TComponentGraph)
     components = graph.all_components()
 
-    return await render_html(html(t'''
+    return await render_html(t'''
         <{AdminPage} title="HTMPL Admin - Resolve">
         <hgroup>
             <h1>Resolve Dependencies</h1>
@@ -239,7 +239,7 @@ async def resolve_page(services: DepContainer):
 
         {ResolveForm(components)}
         </{AdminPage}>
-    '''))
+    ''')
 
 
 @router.post("/resolve")

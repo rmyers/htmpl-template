@@ -4,6 +4,7 @@ import base64
 import re
 import tomllib
 from pathlib import Path
+from pydantic import BaseModel
 from rdflib import Graph, Namespace, Literal
 from structlog.stdlib import get_logger
 
@@ -17,6 +18,15 @@ STATUS = Namespace("htmpl://status/")
 JINJA_CONDITIONAL_RE = re.compile(r"\{%\s*if\s+(\w+)\s*%\}.*?\{%\s*endif\s*%\}")
 
 CURRENT_DIR = Path(__file__).parent
+
+
+class HTComponent(BaseModel):
+    uri: str
+    name: str
+    config_key: str
+    help: str | None = None
+    installed: bool = False
+    readme: str | None = None
 
 
 def parse_dependency(dep: str) -> tuple[str, str]:
@@ -164,44 +174,47 @@ class ComponentGraph:
                 { ?uri dep:requires ?_ } UNION { ?_ dep:requires ?uri }
                 FILTER(STRSTARTS(STR(?uri), "htmpl://"))
             }
-        """
+            """
         )
-        return {str(row.uri).replace(str(HTMPL), "") for row in results}
+        return {str(row[0]).replace(str(HTMPL), "") for row in results}
 
     def get_deps(self, uri: str) -> set[str]:
         """Get all transitive htmpl dependencies for a URI."""
         results = self.graph.query(
-            f"""
-            SELECT ?dep WHERE {{
-                <htmpl://{uri}> dep:requires+ ?dep .
+            """
+            SELECT ?dep WHERE {
+                ?uri dep:requires+ ?dep .
                 FILTER(STRSTARTS(STR(?dep), "htmpl://"))
-            }}
-        """
+            }
+            """,
+            initBindings={"uri": HTMPL[uri]},
         )
-        return {str(row.dep).replace(str(HTMPL), "") for row in results}
+        return {str(row[0]).replace(str(HTMPL), "") for row in results}
 
     def get_python_deps(self, uri: str) -> set[str]:
         """Get Python package dependencies for a URI and its transitive deps."""
         # Get direct python deps
         direct = self.graph.query(
-            f"""
-            SELECT ?dep WHERE {{
-                <htmpl://{uri}> dep:python ?dep .
-            }}
-        """
+            """
+            SELECT ?dep WHERE {
+                ?uri dep:python ?dep .
+            }
+            """,
+            initBindings={"uri": HTMPL[uri]},
         )
-        result = {str(row.dep) for row in direct}
+        result = {str(row[0]) for row in direct}
 
         # Get python deps from transitive htmpl deps
         transitive = self.graph.query(
-            f"""
-            SELECT ?dep WHERE {{
-                <htmpl://{uri}> dep:requires+ ?intermediate .
+            """
+            SELECT ?dep WHERE {
+                ?uri dep:requires+ ?intermediate .
                 ?intermediate dep:python ?dep .
-            }}
-        """
+            }
+            """,
+            initBindings={"uri": HTMPL[uri]},
         )
-        result |= {str(row.dep) for row in transitive}
+        result |= {str(row[0]) for row in transitive}
 
         return result
 
@@ -211,9 +224,9 @@ class ComponentGraph:
             SELECT ?uri WHERE {
                 ?uri status:installed true .
             }
-        """
+            """
         )
-        return {str(row.uri).replace(str(HTMPL), "") for row in results}
+        return {str(row[0]).replace(str(HTMPL), "") for row in results}
 
     def resolve(self, selected: list[str]) -> set[str]:
         """Return all URIs needed, excluding already installed."""
@@ -232,10 +245,10 @@ class ComponentGraph:
             SELECT ?uri ?key WHERE {
                 ?uri htmpl:configKey ?key .
             }
-        """
+            """
         )
         uri_to_key = {
-            str(row.uri).replace(str(HTMPL), ""): str(row.key) for row in results
+            str(row[0]).replace(str(HTMPL), ""): str(row[1]) for row in results
         }
         return {uri_to_key[uri]: uri for uri in uris if uri in uri_to_key}
 
@@ -251,14 +264,14 @@ class ComponentGraph:
                 OPTIONAL { ?uri htmpl:help ?help }
                 OPTIONAL { ?uri htmpl:configKey ?configKey }
             }
-        """
+            """
         )
         return [
             {
-                "uri": (uri := str(row.uri).replace(str(HTMPL), "")),
-                "name": str(row.name) if row.name else uri.split("/")[-1],
-                "help": str(row.help) if row.help else "",
-                "config_key": str(row.configKey) if row.configKey else None,
+                "uri": (uri := str(row[0]).replace(str(HTMPL), "")),
+                "name": str(row[1]) if row[1] else uri.split("/")[-1],
+                "help": str(row[2]) if row[2] else "",
+                "config_key": str(row[3]) if row[3] else None,
                 "installed": uri in installed,
             }
             for row in results
@@ -267,27 +280,28 @@ class ComponentGraph:
     def get_component(self, uri: str) -> dict | None:
         """Get metadata for a single component by URI."""
         results = self.graph.query(
-            f"""
-            SELECT ?name ?help ?configKey ?readme WHERE {{
-                <htmpl://{uri}> htmpl:name ?name .
-                OPTIONAL {{ <htmpl://{uri}> htmpl:help ?help }}
-                OPTIONAL {{ <htmpl://{uri}> htmpl:configKey ?configKey }}
-                OPTIONAL {{ <htmpl://{uri}> htmpl:readme ?readme }}
-            }}
-        """
+            """
+            SELECT ?name ?help ?configKey ?readme WHERE {
+                ?uri htmpl:name ?name .
+                OPTIONAL { ?uri htmpl:help ?help }
+                OPTIONAL { ?uri htmpl:configKey ?configKey }
+                OPTIONAL { ?uri htmpl:readme ?readme }
+            }
+            """,
+            initBindings={"uri": HTMPL[uri]},
         )
         rows = list(results)
         if not rows:
             return None
         row = rows[0]
         installed = self.get_installed()
-        encoded = str(row.readme) if row.readme else None
+        encoded = str(row[3]) if row[3] else None
         readme = base64.b64decode(encoded).decode("utf-8") if encoded else ""
         return {
             "uri": uri,
-            "name": str(row.name),
-            "help": str(row.help) if row.help else "",
-            "config_key": str(row.configKey) if row.configKey else None,
+            "name": str(row[0]),
+            "help": str(row[1]) if row[1] else "",
+            "config_key": str(row[2]) if row[2] else None,
             "installed": uri in installed,
             "readme": readme,
         }
@@ -295,16 +309,17 @@ class ComponentGraph:
     def get_readme(self, uri: str) -> str | None:
         """Get decoded README content for a component."""
         results = self.graph.query(
-            f"""
-            SELECT ?readme WHERE {{
-                <htmpl://{uri}> htmpl:readme ?readme .
-            }}
-        """
+            """
+            SELECT ?readme WHERE {
+                ?uri htmpl:readme ?readme .
+            }
+            """,
+            initBindings={"uri": HTMPL[uri]},
         )
         rows = list(results)
         if not rows:
             return None
-        encoded = str(rows[0].readme)
+        encoded = str(rows[0][0])
         return base64.b64decode(encoded).decode("utf-8")
 
     def component_factory(self, component_cls: type):

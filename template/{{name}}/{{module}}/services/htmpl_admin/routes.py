@@ -58,9 +58,9 @@ def StatusBadge(installed: bool):
 def ComponentCard(component: dict, deps: set[str], python_deps: set[str]):
     uri = component["uri"]
     name = component["name"]
-    help_text = component["help"] or "No description"
     config_key = component["config_key"]
     installed = component["installed"]
+    readme = component["readme"]
 
     config_info = t'<small><code>copier: {config_key}</code></small>' if config_key else t''
 
@@ -82,7 +82,7 @@ def ComponentCard(component: dict, deps: set[str], python_deps: set[str]):
                 {StatusBadge(installed)}
             </hgroup>
         </header>
-        {render_markdown(component["readme"])}
+        {render_markdown(readme)}
         <p><code>{uri}</code></p>
         <footer>
         {config_info}

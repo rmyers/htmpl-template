@@ -15,4 +15,4 @@ $ make setup
 $ make dev
 ```
 
-Then visit [http://locahost:8000/\_admin](http://localhost:8000/_admin) which will prompt you for the `code` displayed on the terminal.
+Then visit [http://locahost:8000/admin](http://localhost:8000/admin) which will prompt you for the `code` displayed on the terminal.

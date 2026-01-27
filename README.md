@@ -14,9 +14,10 @@ If and when the base template changes you will be able to upgrade to the new one
 
 First you will need to install `uv` go get it now if you don't have it: https://docs.astral.sh/uv/
 
-:note: Make sure you are not in an existing project folder before running this command.
+> [!NOTE]
+> Make sure you are not in an existing project folder before running this command.
 
-Find a good location to install your project, this command will
+Find a good location to install your project:
 
 ```bash
 $ uvx htmpl init .

@@ -94,7 +94,7 @@ def main():
         args.ttl_output
         or template_dir
         / "{{name}}"
-        / "{{module}}"
+        / "app"
         / "services"
         / "htmpl_admin"
         / "components.ttl"

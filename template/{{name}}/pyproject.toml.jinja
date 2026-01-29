@@ -7,7 +7,7 @@ requires-python = ">=3.14"
 
 dependencies = [
     "htmpl[all]",
-    "cuneus",
+    "cuneus>=0.2.2",
     "mistune",
     "rdflib",
     "python-multipart",
@@ -25,7 +25,7 @@ dev = [
 ]
 
 [tool.cuneus]
-app_module = "{{module}}.app:app"
+app_module = "app.main:app"
 
 [tool.coverage.report]
 exclude_lines = [
@@ -41,7 +41,7 @@ exclude_lines = [
 # addresses this asyncio issue: https://github.com/nedbat/coveragepy/issues/1082
 concurrency = ["thread", "greenlet"]
 omit = [".venv"]
-source = ["{{module}}"]
+source = ["app"]
 
 [tool.mypy]
 check_untyped_defs = true
@@ -50,7 +50,7 @@ disallow_untyped_decorators = true
 disallow_untyped_defs = true
 no_implicit_optional = true
 python_version = "3.14"
-files = "{{module}}/**/*.py"
+files = "app/**/*.py"
 strict_equality = true
 warn_no_return = true
 warn_redundant_casts = true
@@ -63,7 +63,7 @@ warn_unused_ignores = true
 addopts = [
     # "--test-alembic",
     "--log-cli-level=warning",
-    "--cov={{module}}",
+    "--cov=app",
     "--cov-branch",
     "--cov-report=term-missing:skip-covered",
     "--cov-report=html",

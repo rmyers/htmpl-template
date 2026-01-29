@@ -51,7 +51,11 @@ deps: $(MARKER) .env ## Run any dependencies for local dev and test
 
 .PHONY: dev
 dev: deps ## Run the application in dev mode
-	$(UV) run cuneus run --reload
+	$(UV) run cuneus dev
+
+.PHONY: prod
+prod: deps ## Run the application in prod mode
+	$(UV) run cuneus prod
 
 .PHONY: test
 test: deps ## Run pytests

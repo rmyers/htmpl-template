@@ -24,13 +24,13 @@ check-env:
 $(UV_LOCK_FILE): pyproject.toml
 	$(UV_SYNC)
 
-lock: check-env $(UV_LOCK_FILE)  ## Lock Conda dependencies in project
+lock: check-env $(UV_LOCK_FILE)  ## Lock dependencies in project
 
-lock-force: check-env  ## Force lock Conda dependencies in project
-	$(UV_SYNC)
+lock-force: check-env  ## Force lock dependencies in project
+	$(UV_SYNC) --refresh
 
 setup: check-env $(UV_LOCK_FILE)  ## Setup local environment
-	$(UV_SYNC) --reinstall
+	$(UV_SYNC) --extra dev
 
 type-check:  ## Run mypy to check static types
 	$(uv_run) mypy $(args)
@@ -70,7 +70,9 @@ clean:  ## Clean up cache and temporary files and stop containers
 	rm -rf .pytest_cache .mypy_cache .coverage coverage.xml htmlcov junit dist
 
 build:  ## Run build
+	@rm -rf dist
 	$(uv_run) python build_release.py
+	$(UV_EXE) build
 
 dev:  ## Run the rendered app
 	$(uv_run) uvicorn "rendered.app:app" --reload

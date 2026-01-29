@@ -92,12 +92,7 @@ def main():
     # Place it in a location that gets copied to rendered projects
     ttl_output = (
         args.ttl_output
-        or template_dir
-        / "{{name}}"
-        / "app"
-        / "services"
-        / "htmpl_admin"
-        / "components.ttl"
+        or template_dir / "app" / "services" / "htmpl_admin" / "components.ttl"
     )
     build_ttl(template_dir, ttl_output)
 

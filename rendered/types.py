@@ -1,1 +1,1 @@
-../template/{{name}}/{{module}}/types.py
+../template/app/types.py

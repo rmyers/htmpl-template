@@ -1,1 +1,1 @@
-../template/{{name}}/{{module}}/__init__.py
+../template/app/__init__.py

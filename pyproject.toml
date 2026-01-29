@@ -17,7 +17,10 @@ classifiers = [
   "Typing :: Typed",
 ]
 
-dependencies = [
+dependencies = ["copier"]
+
+[project.optional-dependencies]
+dev = [
   "tdom",
   "htmpl",
   "cuneus",
@@ -31,11 +34,20 @@ dependencies = [
   "pytest-mock>=3.15.1",
 ]
 
+[project.scripts]
+htmpl-template = "htmpl_template.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/rmyers/htmpl-template"
 Documentation = "https://github.com/rmyers/htmpl-template#readme"
 Repository = "https://github.com/rmyers/htmpl-template"
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/htmpl_template"]
 
 [tool.ruff]
 target-version = "py314"
@@ -67,15 +79,3 @@ filterwarnings = [
   # "error",
   "ignore::pyparsing.exceptions.PyparsingDeprecationWarning",
 ]
-
-[tool.conda-lock]
-channels = ["conda-forge", "defaults"]
-platforms = ["linux-64", "osx-arm64"]
-
-[tool.conda-lock.dependencies]
-tdom = { source = "pypi" }
-htmpl = { source = "pypi" }
-cuneus = { source = "pypi" }
-python = "3.14"
-conda-lock = "*"
-pip = "*"

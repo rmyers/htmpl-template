@@ -1,1 +1,1 @@
-../template/{{name}}/{{module}}/settings.py
+../template/app/settings.py

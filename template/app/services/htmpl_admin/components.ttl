@@ -1,2 +1,8 @@
 @prefix htmpl: <htmpl://> .
 @prefix dep: <htmpl://depends/> .
+
+<htmpl://components/auth> htmpl:name "auth" .
+<htmpl://components/auth> htmpl:configKey "auth" .
+<htmpl://components/auth> dep:requires <htmpl://services/oauth> .
+<htmpl://components/auth> dep:python "ptjwt>=2.8.0" .
+<htmpl://components/auth> htmpl:readme "H4sIAAAAAAAC/51UTW/bMAy961cQycHO0Ln3ohsWFOtp2Iq2OxVDqtp0LNSWNEluagT57yMl20l6nIHECcXHj8dHLWHdhwZ1UKUMymi4MZ01mgxeiMdGeehM1bcIO9W2INvW7GAwPQQDlfK2lQOUpusI2Jqt0iB1BQ63ygeX4tXGdb4QYrmE315uUYjn52c7hMZoUTvTQS19kFaBorwuwD1WymEZ7tFTHR6TUxM6204uDnWFbkO29uS0iJkmnzvpPFa3ZLqA3uOGD5NzUZRzi4Wk5ifID24gIWIvCSPEN2ltscWQZ5fRnq2SyRp/YgNYwmODUKHl8nQ5QDYlzqAhXlr0wBiq/2+P9H6TraoiS0L6QZeErVPqXAA9lui6grXWJsiA1dNaD6mZuYF8be0dea3+XEQEJztFHFl4mrv7cyQkn40cYHUVYyzhVjmqrmywfAVVA8nDIUj+6AHQOeOIZs32mHCc+ec0ltkcgxGcfxcJlRLw4zD0jtSyk+psnnlYXO+578PX/XEIOX+tDteX49FiJcZSb06KTMU00sMLogbrTIme2o/1ZZHs7Kwo4l4CKZzYgp/E57G8JfyyPBfS+wCVAW86DI3SW8DW8y6QaiK6ZqpOYKehC4cdvlBj3VlkfnwwDjc0Bqdlh/kRMplWH5n6uBYkvGxm4TsXNU9qJ7mlaVDGpUp9Q5s7s0Rf8Q/nK6YoivHzWvPxSyv1a0IQgJwjE5DUWve6ZJI8XwY1hjJxMkZ7oK2iawPfJb8nacEneODe5+TcLItJ0jViXhWOYgpO4RsdBKArRON7ABkCdjZxPQO/jAqi7dx4+YbVkdPEIE2dVo389ovpZHE14w9M2hwsjnZ/EP+pz4sx2blO6bIT/wDOiVEyZAUAAA==" .

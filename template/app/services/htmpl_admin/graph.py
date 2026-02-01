@@ -1,6 +1,7 @@
 """Component graph service."""
 
 import base64
+import gzip
 import re
 import tomllib
 from pathlib import Path
@@ -55,6 +56,12 @@ def extract_config_key(dirname: str) -> str | None:
     return match.group(1) if match else None
 
 
+def _decode_readme(encoded: str) -> str:
+    """Decode base64 + gzip compressed README."""
+    compressed = base64.b64decode(encoded)
+    return gzip.decompress(compressed).decode("utf-8")
+
+
 def build_component_ttl(template_dir: Path) -> str:
     """Build TTL from component.toml files in the template directory.
 
@@ -69,7 +76,7 @@ def build_component_ttl(template_dir: Path) -> str:
     ]
 
     # Find the module directory (handles {{name}}/{{module}} pattern)
-    module_dirs = list(template_dir.glob("*/*/"))
+    module_dirs = list(template_dir.glob("app/"))
     if not module_dirs:
         return "\n".join(lines)
 
@@ -124,7 +131,8 @@ def build_component_ttl(template_dir: Path) -> str:
                 readme_file = component_dir / readme_path
                 if readme_file.exists():
                     content = readme_file.read_bytes()
-                    encoded = base64.b64encode(content).decode("ascii")
+                    compressed = gzip.compress(content)
+                    encoded = base64.b64encode(compressed).decode("ascii")
                     lines.append(f'{subject} htmpl:readme "{encoded}" .')
 
             lines.append("")  # Blank line between components
@@ -296,7 +304,7 @@ class ComponentGraph:
         row = rows[0]
         installed = self.get_installed()
         encoded = str(row[3]) if row[3] else None
-        readme = base64.b64decode(encoded).decode("utf-8") if encoded else ""
+        readme = _decode_readme(encoded) if encoded else ""
         return {
             "uri": uri,
             "name": str(row[0]),
@@ -320,7 +328,7 @@ class ComponentGraph:
         if not rows:
             return None
         encoded = str(rows[0][0])
-        return base64.b64decode(encoded).decode("utf-8")
+        return _decode_readme(encoded)
 
     def component_factory(self, component_cls: type):
         """Create a factory function for svcs registry.

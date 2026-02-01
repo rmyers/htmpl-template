@@ -7,7 +7,7 @@ requires-python = ">=3.14"
 
 dependencies = [
     "htmpl[all]",
-    "cuneus>=0.2.4",
+    "cuneus>=0.2.7",
     "mistune",
     "rdflib",
     "python-multipart",
@@ -38,8 +38,9 @@ exclude_lines = [
 ]
 
 [tool.coverage.run]
+# If using sqlalchemy asyncio extension you'll need this
 # addresses this asyncio issue: https://github.com/nedbat/coveragepy/issues/1082
-concurrency = ["thread", "greenlet"]
+# concurrency = ["thread", "greenlet"]
 omit = [".venv"]
 source = ["app"]
 

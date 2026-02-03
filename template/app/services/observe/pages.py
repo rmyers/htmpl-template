@@ -1,11 +1,9 @@
-# cuneus/ext/observability/pages.py
-from __future__ import annotations
 from string.templatelib import Template
 
 from .store import DashboardStats, TraceRecord, SpanRecord, ExceptionRecord
 
 
-def _layout(title: str, content: str) -> Template:
+def _layout(children, title: str = "Observation") -> Template:
     return t"""<!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
@@ -43,14 +41,14 @@ def _layout(title: str, content: str) -> Template:
         </aside>
         <main class="container">
             <h1>{title}</h1>
-            {content}
+            {children}
         </main>
     </div>
 </body>
 </html>"""
 
 
-def _time_ago(dt) -> str:
+def _time_ago(dt) -> Template:
     from datetime import datetime, timezone
 
     now = datetime.now(timezone.utc)
@@ -58,36 +56,36 @@ def _time_ago(dt) -> str:
 
     seconds = int(delta.total_seconds())
     if seconds < 60:
-        return "just now"
+        return t"just now"
     if seconds < 3600:
-        return f"{seconds // 60}m ago"
+        return t"{seconds // 60}m ago"
     if seconds < 86400:
-        return f"{seconds // 3600}h ago"
-    return f"{seconds // 86400}d ago"
+        return t"{seconds // 3600}h ago"
+    return t"{seconds // 86400}d ago"
 
 
-def _badge(status: str) -> str:
+def _badge(status: str) -> Template:
     if status == "ERROR":
-        return '<mark data-status="error">ERROR</mark>'
-    return "<kbd>OK</kbd>"
+        return t'<mark data-status="error">ERROR</mark>'
+    return t"<kbd>OK</kbd>"
 
 
-def _pagination(page: int, total_pages: int, base_url: str) -> str:
+def _pagination(page: int, total_pages: int, base_url: str) -> Template:
     if total_pages <= 1:
-        return ""
+        return t""
 
     prev_link = (
-        f'<a href="{base_url}?page={page - 1}">←</a>'
+        t'<a href="{base_url}?page={page - 1}">←</a>'
         if page > 1
-        else '<span aria-disabled="true">←</span>'
+        else t'<span aria-disabled="true">←</span>'
     )
     next_link = (
-        f'<a href="{base_url}?page={page + 1}">→</a>'
+        t'<a href="{base_url}?page={page + 1}">→</a>'
         if page < total_pages
-        else '<span aria-disabled="true">→</span>'
+        else t'<span aria-disabled="true">→</span>'
     )
 
-    return f"""
+    return t"""
     <nav>
         <ul>
             <li>{prev_link}</li>
@@ -103,27 +101,26 @@ def _pagination(page: int, total_pages: int, base_url: str) -> str:
 # -----------------------------------------------------------------------------
 
 
-def dashboard_page(stats: DashboardStats) -> str:
-    traces_rows = "".join(
-        f"""<tr>
+def dashboard_page(stats: DashboardStats) -> Template:
+    traces_rows = t""
+    for t in stats.recent_traces:
+        traces_rows += t"""<tr>
             <td><a href="/admin/traces/{t.trace_id}"><code>{t.trace_id[:12]}…</code></a></td>
             <td>{t.root_span_name}</td>
             <td>{t.duration_ms}ms</td>
             <td>{_badge(t.status)}</td>
         </tr>"""
-        for t in stats.recent_traces
-    )
 
-    exceptions_rows = "".join(
-        f"""<tr>
+    exceptions_rows = t""
+    for e in stats.recent_exceptions:
+        exceptions_rows += t"""<tr>
             <td><a href="/admin/exceptions/{e.id}">{e.exc_type}</a></td>
             <td><small>{e.message[:50]}{'…' if len(e.message) > 50 else ''}</small></td>
             <td><small>{_time_ago(e.ts)}</small></td>
         </tr>"""
-        for e in stats.recent_exceptions
-    )
 
-    content = f"""
+    return t"""
+    <{_layout} title="Dashboard">
     <div class="stats-grid">
         <article class="stat-card">
             <small>Traces</small>
@@ -170,9 +167,8 @@ def dashboard_page(stats: DashboardStats) -> str:
             </figure>
         </article>
     </div>
+    </{_layout}>
     """
-
-    return _layout("Dashboard", content)
 
 
 # -----------------------------------------------------------------------------
@@ -182,9 +178,10 @@ def dashboard_page(stats: DashboardStats) -> str:
 
 def traces_page(
     traces: list[TraceRecord], page: int, total_pages: int, status_filter: str | None
-) -> str:
-    rows = "".join(
-        f"""<tr>
+) -> Template:
+    rows = t""
+    for t in traces:
+        rows += t"""<tr>
             <td><a href="/admin/traces/{t.trace_id}"><code>{t.trace_id[:12]}…</code></a></td>
             <td>{t.root_span_name}</td>
             <td>{t.service}</td>
@@ -192,10 +189,9 @@ def traces_page(
             <td>{t.duration_ms}ms</td>
             <td>{_badge(t.status)}</td>
         </tr>"""
-        for t in traces
-    )
 
-    content = f"""
+    return t"""
+    <{_layout} title="Traces">
     <form method="get" action="/admin/traces">
         <fieldset role="group">
             <select name="status" onchange="this.form.submit()">
@@ -218,17 +214,17 @@ def traces_page(
     </figure>
 
     {_pagination(page, total_pages, '/admin/traces')}
+    </{_layout}>
     """
 
-    return _layout("Traces", content)
 
-
-def trace_detail_page(trace: TraceRecord, spans: list[SpanRecord]) -> str:
+def trace_detail_page(trace: TraceRecord, spans: list[SpanRecord]) -> Template:
     waterfall = (
-        _waterfall(spans, trace.duration_ms) if spans else "<p><em>No spans</em></p>"
+        _waterfall(spans, trace.duration_ms) if spans else t"<p><em>No spans</em></p>"
     )
 
-    content = f"""
+    return t"""
+    <{_layout} title="Trace: {trace.root_span_name}">
     <article>
         <header>
             <hgroup>
@@ -248,17 +244,16 @@ def trace_detail_page(trace: TraceRecord, spans: list[SpanRecord]) -> str:
         <header>Spans ({len(spans)})</header>
         {waterfall}
     </article>
+    </{_layout}>
     """
 
-    return _layout(f"Trace: {trace.root_span_name}", content)
 
-
-def _waterfall(spans: list[SpanRecord], total_ms: int) -> str:
+def _waterfall(spans: list[SpanRecord], total_ms: int) -> Template:
     if not spans or total_ms == 0:
-        return "<p><em>No spans</em></p>"
+        return t"<p><em>No spans</em></p>"
 
     trace_start = min(s.started_at for s in spans)
-    rows = ""
+    rows = t""
 
     for span in spans:
         offset_ms = (span.started_at - trace_start).total_seconds() * 1000
@@ -267,7 +262,7 @@ def _waterfall(spans: list[SpanRecord], total_ms: int) -> str:
         bar_class = "error" if span.status == "ERROR" else "ok"
         indent = "··" if span.parent_span_id else ""
 
-        rows += f"""<tr>
+        rows += t"""<tr>
             <td><code>{indent}{span.name}</code></td>
             <td style="width: 50%;">
                 <div class="waterfall-track">
@@ -277,7 +272,7 @@ def _waterfall(spans: list[SpanRecord], total_ms: int) -> str:
             <td><small>{span.duration_ms}ms</small></td>
         </tr>"""
 
-    return f"""
+    return t"""
     <figure>
         <table>
             <thead><tr><th>Span</th><th>Timeline</th><th>Duration</th></tr></thead>
@@ -294,9 +289,10 @@ def _waterfall(spans: list[SpanRecord], total_ms: int) -> str:
 
 def exceptions_page(
     exceptions: list[ExceptionRecord], page: int, total_pages: int
-) -> str:
-    rows = "".join(
-        f"""<tr>
+) -> Template:
+    rows = t""
+    for e in exceptions:
+        rows += t"""<tr>
             <td><a href="/admin/exceptions/{e.id}">{e.exc_type}</a></td>
             <td><small>{e.message[:60]}{'…' if len(e.message) > 60 else ''}</small></td>
             <td>
@@ -304,10 +300,9 @@ def exceptions_page(
             </td>
             <td><small>{_time_ago(e.ts)}</small></td>
         </tr>"""
-        for e in exceptions
-    )
 
-    content = f"""
+    return t"""
+    <{_layout} title="Exceptions">
     <figure>
         <table>
             <thead><tr><th>Type</th><th>Message</th><th>Trace</th><th>When</th></tr></thead>
@@ -318,19 +313,19 @@ def exceptions_page(
     </figure>
 
     {_pagination(page, total_pages, '/admin/exceptions')}
+    </{_layout}>
     """
 
-    return _layout("Exceptions", content)
 
-
-def exception_detail_page(exc: ExceptionRecord) -> str:
+def exception_detail_page(exc: ExceptionRecord) -> Template:
     trace_link = (
         f'<a href="/admin/traces/{exc.trace_id}">{exc.trace_id}</a>'
         if exc.trace_id
         else "<em>Not linked</em>"
     )
 
-    content = f"""
+    return t"""
+    <{_layout} title="Exception: {exc.exc_type}">
     <article>
         <header>
             <hgroup>
@@ -351,9 +346,8 @@ def exception_detail_page(exc: ExceptionRecord) -> str:
     </article>
 
     {_context_section(exc.ctx)}
+    </{_layout}>
     """
-
-    return _layout(f"Exception: {exc.exc_type}", content)
 
 
 def _context_section(ctx: dict | None) -> Template:

@@ -1,18 +1,16 @@
-# cuneus/ext/observability/extension.py
 from __future__ import annotations
 
-import logging
-from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator
+from typing import Any
 
+import structlog
 import svcs
 from fastapi import FastAPI
 
 from cuneus import BaseExtension, Settings
 from .store import Store, InMemoryStore
-from .routes import create_router
+from .routes import router
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class ObservabilitySettings(Settings):
@@ -42,28 +40,21 @@ class ObservabilityExtension(BaseExtension):
 
     def __init__(
         self,
-        store: Store | None = None,
         settings: ObservabilitySettings | None = None,
+        store: Store | None = None,
     ):
         self.settings = settings or ObservabilitySettings()
         self.store = store or InMemoryStore()
 
-    @asynccontextmanager
-    async def register(
-        self, registry: svcs.Registry, app: FastAPI
-    ) -> AsyncIterator[dict[str, Any]]:
+    async def startup(self, registry: svcs.Registry, app: FastAPI) -> dict[str, Any]:
         registry.register_value(Store, self.store)
 
         logger.info(
             "Observability admin started",
-            extra={"prefix": self.settings.prefix},
+            prefix=self.settings.prefix,
         )
 
-        yield {"observability_store": self.store}
+        return {"observability_store": self.store}
 
     def add_routes(self, app: FastAPI) -> None:
-        if not self.settings.enabled:
-            return
-
-        router = create_router(self.store)
         app.include_router(router, prefix=self.settings.prefix)

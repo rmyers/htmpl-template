@@ -1,11 +1,7 @@
-BASE_DIR		:= $(shell git rev-parse --show-toplevel 2>/dev/null || pwd)
-PROG_NAME		:= $(shell basename $(BASE_DIR))
-PYPROJECT		:= $(shell find . -name 'pyproject.toml')
-SHELL			:= /bin/bash
-UV_LOCK			:= uv.lock
-UV				?= uv
-VENV			:= .venv
-MARKER			:= $(VENV)/.installed
+BASE_DIR    := $(shell git rev-parse --show-toplevel 2>/dev/null || pwd)
+PROG_NAME   := $(shell basename $(BASE_DIR))
+SHELL       := /bin/bash
+UV          ?= uv
 
 ################################################################
 #%
@@ -24,29 +20,27 @@ help: ## Help is on the way
 	@grep '^#%' $(MAKEFILE_LIST) | sed -e 's/#%//'
 	@grep '^[a-zA-Z]' $(MAKEFILE_LIST) | awk -F ':.*?## ' 'NF==2 {printf "   %-20s%s\n", $$1, $$2}' | sort
 
-# export env vars in order to be used in commands
 export PYTHONPATH ?= ./
 
-# uv creates the venv automatically, but this tracks if sync has been run
-$(MARKER): $(PYPROJECT) $(UV_LOCK)
-	$(UV) sync --all-extras
-	touch $(MARKER)
+# Refresh lock if pyproject.toml is newer than uv.lock
+uv.lock: pyproject.toml
+	$(UV) lock --refresh
 
-.PHONY: install
-setup: $(MARKER) ## Install dependencies for the project
+.PHONY: setup
+setup: uv.lock ## Install dependencies for the project
+	$(UV) sync --all-extras
 
 .PHONY: update
-update: ## Update and lock dependencies
-	$(UV) lock
-	$(UV) sync
-	touch $(MARKER)
+update: ## Update all dependencies to latest
+	$(UV) lock --upgrade
+	$(UV) sync --all-extras
 
 .PHONY: clean
 clean: ## Remove virtual environment
-	rm -rf $(VENV)
+	rm -rf .venv
 
 .PHONY: deps
-deps: $(MARKER) .env ## Run any dependencies for local dev and test
+deps: setup .env ## Run any dependencies for local dev and test
 	@echo "Starting deps..."
 
 .PHONY: dev
@@ -64,5 +58,3 @@ test: deps ## Run pytests
 .PHONY: test-failed
 test-failed: deps ## Re-Run pytest on tests that failed
 	$(UV) run pytest --lf
-
-

@@ -288,8 +288,6 @@ def traces_page(
 
 
 def trace_detail_page(trace: TraceRecord, spans: list[SpanRecord]) -> Template:
-
-    logger.info(f"span count: {len(spans)} {spans}")
     return t"""
     <{_layout} title="Trace: {trace.root_span_name}">
     <article>
